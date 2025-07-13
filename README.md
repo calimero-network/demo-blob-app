@@ -74,12 +74,12 @@ The application uses a simple Run-Length Encoding (RLE) compression algorithm fo
 
 2. Start the frontend:
    ```bash
-   cd frontend
-   npm install
-   npm start
+   cd app
+   pnpm install
+   pnpm run dev
    ```
 
-3. Open http://localhost:3000 in your browser
+3. Open http://localhost:5173/demo-blob-app in your browser
 
 ## API Methods
 

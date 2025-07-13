@@ -5,7 +5,7 @@ import { resolve } from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  base: '/blob-test/',
+  base: '/demo-blob-app/',
   build: {
     outDir: 'build',
     rollupOptions: {
