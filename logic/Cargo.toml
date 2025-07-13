@@ -1,0 +1,19 @@
+[package]
+name = "demo-blob-app"
+version = "0.1.0"
+authors.workspace = true
+edition.workspace = true
+repository.workspace = true
+license.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+bs58 = "0.5"
+calimero-sdk = { git = "https://github.com/calimero-network/core", branch = "master" }
+calimero-storage = { git = "https://github.com/calimero-network/core", branch = "master" }
+flate2 = "1.0"
+
+[lints]
+workspace = true
