@@ -32,3 +32,4 @@ coverage
 .idea/
 data/
 target/
+res/
