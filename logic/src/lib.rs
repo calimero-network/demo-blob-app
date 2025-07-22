@@ -185,12 +185,12 @@ fn stream_compress_blob(blob_id_bytes: &[u8; 32]) -> Result<Option<([u8; 32], u6
         return Ok(None);
     }
 
-    // Create destination blob for compressed data
-    let write_fd = env::blob_create();
-    if write_fd == 0 {
-        let _ = env::blob_close(read_fd);
-        return Err("Failed to create compressed blob handle".to_owned());
-    }
+    // // Create destination blob for compressed data
+    // let write_fd = env::blob_create();
+    // if write_fd == 0 {
+    //     let _ = env::blob_close(read_fd);
+    //     return Err("Failed to create compressed blob handle".to_owned());
+    // }
 
     // True streaming compression: read chunk → write to encoder → encoder writes compressed to blob
     struct BlobWriter {
@@ -210,11 +210,11 @@ fn stream_compress_blob(blob_id_bytes: &[u8; 32]) -> Result<Option<([u8; 32], u6
         }
     }
 
-    let blob_writer = BlobWriter {
-        fd: write_fd,
-        total_written: 0,
-    };
-    let mut encoder = GzEncoder::new(blob_writer, Compression::default());
+    // let blob_writer = BlobWriter {
+    //     fd: write_fd,
+    //     total_written: 0,
+    // };
+    // let mut encoder = GzEncoder::new(blob_writer, Compression::default());
     let mut read_buffer = [0u8; 8192];
     let mut original_size = 0u64;
 
@@ -227,38 +227,38 @@ fn stream_compress_blob(blob_id_bytes: &[u8; 32]) -> Result<Option<([u8; 32], u6
 
         original_size += bytes_read;
 
-        // Write chunk to compressor (it automatically writes compressed data to blob)
-        encoder
-            .write_all(&read_buffer[..bytes_read as usize])
-            .map_err(|e| {
-                let _ = env::blob_close(read_fd);
-                let _ = env::blob_close(write_fd);
-                format!("Compression write error: {}", e)
-            })?;
+        // // Write chunk to compressor (it automatically writes compressed data to blob)
+        // encoder
+        //     .write_all(&read_buffer[..bytes_read as usize])
+        //     .map_err(|e| {
+        //         let _ = env::blob_close(read_fd);
+        //         let _ = env::blob_close(write_fd);
+        //         format!("Compression write error: {}", e)
+        //     })?;
     }
 
-    let _ = env::blob_close(read_fd);
+    // let _ = env::blob_close(read_fd);
 
     // Finish compression (flushes remaining compressed data to blob)
-    let blob_writer = encoder.finish().map_err(|e| {
-        let _ = env::blob_close(write_fd);
-        format!("Compression finish error: {}", e)
-    })?;
+    // let blob_writer = encoder.finish().map_err(|e| {
+    //     let _ = env::blob_close(write_fd);
+    //     format!("Compression finish error: {}", e)
+    // })?;
 
-    let compressed_size = blob_writer.total_written;
+    // let compressed_size = blob_writer.total_written;
 
     // Check if compression helped (> 10% savings)
-    let compression_ratio = compressed_size as f64 / original_size as f64;
-    if compression_ratio >= 0.9 {
+    // let compression_ratio = compressed_size as f64 / original_size as f64;
+    // if compression_ratio >= 0.9 {
         // Compression didn't help, clean up and return original
-        let _ = env::blob_close(write_fd);
+        // let _ = env::blob_close(write_fd);
         return Ok(Some((*blob_id_bytes, original_size, original_size)));
-    }
+    // }
 
     // Close and get blob ID
-    let compressed_blob_id = env::blob_close(write_fd);
+    // let compressed_blob_id = env::blob_close(write_fd);
 
-    Ok(Some((compressed_blob_id, original_size, compressed_size)))
+    // Ok(Some((compressed_blob_id, original_size, compressed_size)))
 }
 
 /// Decompress data (handles both gzip and uncompressed)

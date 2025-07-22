@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, DragEvent } from 'react';
-import { blobClient, clientLogout } from '@calimero-network/calimero-client';
+import { blobClient, clientLogout, getAuthConfig, getContextId } from '@calimero-network/calimero-client';
 import { ChatApi, Message, FileUpload, Attachment } from '../api/chatApi';
 
 const chatApi = new ChatApi();
@@ -11,12 +11,17 @@ interface MessageWithFiles extends Message {
 export default function ChatPage() {
   const [messages, setMessages] = useState<MessageWithFiles[]>([]);
   const [messageText, setMessageText] = useState('');
-  const [senderName, setSenderName] = useState('User');
   const [files, setFiles] = useState<FileUpload[]>([]);
   const [output, setOutput] = useState('');
   const [stats, setStats] = useState<any>({});
   const [isDragOver, setIsDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  // Get context identity from auth config
+  const getCurrentSender = () => {
+    const config = getAuthConfig();
+    return config?.executorPublicKey || 'Unknown';
+  };
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -109,7 +114,9 @@ export default function ChatPage() {
           setFiles(prev => prev.map((f, i) => 
             i === index ? { ...f, progress } : f
           ));
-        }
+        },
+        '',
+        getContextId()
       );
 
       if (response.error) {
@@ -123,11 +130,11 @@ export default function ChatPage() {
             ...f, 
             uploading: false, 
             uploaded: true, 
-            blob_id: response.data!.blob_id,
+            blob_id: response.data!.blobId,
             progress: 100 
           } : f
         ));
-        appendOutput(`Upload completed for ${fileUpload.file.name}: ${response.data!.blob_id}`);
+        appendOutput(`Upload completed for ${fileUpload.file.name}: ${response.data!.blobId}`);
       }
     } catch (error) {
       setFiles(prev => prev.map((f, i) => 
@@ -154,7 +161,7 @@ export default function ChatPage() {
       appendOutput(`Sending message with ${uploadedFiles.length} attachments...`);
       
       const response = await chatApi.sendMessage({
-        sender: senderName,
+        sender: getCurrentSender(),
         text: messageText,
         attachment_blob_ids: uploadedFiles.map(f => f.blob_id!),
         attachment_names: uploadedFiles.map(f => f.file.name),
@@ -197,7 +204,7 @@ export default function ChatPage() {
       
       // Step 2: Download the original file via HTTP
       appendOutput(`Downloading original file via HTTP...`);
-      const blob = await blobClient.downloadBlob(decompressedBlobId);
+      const blob = await blobClient.downloadBlob(decompressedBlobId, getContextId() || undefined);
       
       // Step 3: Create download link
       const url = URL.createObjectURL(blob);
@@ -240,9 +247,9 @@ export default function ChatPage() {
     setOutput('');
   };
 
-  const handleLogout = async () => {
+  const handleLogout = () => {
     try {
-      await clientLogout();
+      clientLogout();
       appendOutput('Logged out successfully');
     } catch (error) {
       appendOutput(`Logout failed: ${error}`);
@@ -331,15 +338,9 @@ export default function ChatPage() {
           </div>
 
           <div className="input-section">
-            <div className="sender-input">
+            <div className="sender-display">
               <label>
-                Sender:
-                <input
-                  type="text"
-                  value={senderName}
-                  onChange={(e) => setSenderName(e.target.value)}
-                  placeholder="Your name"
-                />
+                <strong>Sender:</strong> {getCurrentSender()}
               </label>
             </div>
 
@@ -627,22 +628,21 @@ export default function ChatPage() {
           background: white;
         }
 
-        .sender-input {
+        .sender-display {
           margin-bottom: 16px;
+          padding: 12px;
+          background: #f8f9fa;
+          border: 1px solid #e5e7eb;
+          border-radius: 6px;
         }
 
-        .sender-input label {
+        .sender-display label {
           display: flex;
           align-items: center;
           gap: 8px;
           font-weight: 500;
-        }
-
-        .sender-input input {
-          padding: 8px 12px;
-          border: 1px solid #d1d5db;
-          border-radius: 4px;
-          font-size: 14px;
+          margin: 0;
+          color: #374151;
         }
 
         .file-drop-zone {
