@@ -44,6 +44,8 @@ export enum ChatMethod {
   GET_DECOMPRESSED_BLOB_ID = 'get_decompressed_blob_id',
   GET_STATS = 'get_stats',
   CLEAR_MESSAGES = 'clear_messages',
+  TEST_BLOB_ANNOUNCEMENT = 'test_blob_announcement',
+  TEST_BLOB_RETRIEVAL = 'test_blob_retrieval',
 }
 
 // File upload interface for the UI
@@ -359,6 +361,106 @@ export class ChatApi {
       };
     } catch (error) {
       console.error('clearMessages failed:', error);
+      return {
+        error: {
+          code: 500,
+          message: error instanceof Error ? error.message : 'An unexpected error occurred',
+        },
+      };
+    }
+  }
+
+  async testBlobAnnouncement(testData: string): ApiResponse<string> {
+    try {
+      const config = getAuthConfig();
+
+      if (!config || !config.contextId || !config.executorPublicKey) {
+        return {
+          data: null,
+          error: {
+            code: 500,
+            message: 'Authentication configuration not found',
+          },
+        };
+      }
+
+      const params: RpcQueryParams<{ test_data: string }> = {
+        contextId: config.contextId,
+        method: ChatMethod.TEST_BLOB_ANNOUNCEMENT,
+        argsJson: { test_data: testData },
+        executorPublicKey: config.executorPublicKey,
+      };
+
+      const response = await rpcClient.execute<{ test_data: string }, string>(
+        params, 
+        RequestConfig
+      );
+
+      if (response?.error) {
+        return {
+          error: {
+            code: response.error.code ?? 500,
+            message: getErrorMessage(response.error)
+          }
+        };
+      }
+
+      return {
+        data: response.result.output as string,
+        error: null,
+      };
+    } catch (error) {
+      console.error('testBlobAnnouncement failed:', error);
+      return {
+        error: {
+          code: 500,
+          message: error instanceof Error ? error.message : 'An unexpected error occurred',
+        },
+      };
+    }
+  }
+
+  async testBlobRetrieval(blobId: string): ApiResponse<string> {
+    try {
+      const config = getAuthConfig();
+
+      if (!config || !config.contextId || !config.executorPublicKey) {
+        return {
+          data: null,
+          error: {
+            code: 500,
+            message: 'Authentication configuration not found',
+          },
+        };
+      }
+
+      const params: RpcQueryParams<{ blob_id_str: string }> = {
+        contextId: config.contextId,
+        method: ChatMethod.TEST_BLOB_RETRIEVAL,
+        argsJson: { blob_id_str: blobId },
+        executorPublicKey: config.executorPublicKey,
+      };
+
+      const response = await rpcClient.execute<{ blob_id_str: string }, string>(
+        params, 
+        RequestConfig
+      );
+
+      if (response?.error) {
+        return {
+          error: {
+            code: response.error.code ?? 500,
+            message: getErrorMessage(response.error)
+          }
+        };
+      }
+
+      return {
+        data: response.result.output as string,
+        error: null,
+      };
+    } catch (error) {
+      console.error('testBlobRetrieval failed:', error);
       return {
         error: {
           code: 500,

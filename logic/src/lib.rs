@@ -354,6 +354,26 @@ impl ChatApp {
                 compression_ratio,
             });
 
+            // Announce both original and compressed blobs to the network for discovery
+            let current_context = env::context_id();
+            
+            // Announce original blob to network
+            if env::blob_announce_to_context(&blob_id_bytes, &current_context) {
+                app::log!("Successfully announced original blob {} to network", blob_id_str);
+            } else {
+                app::log!("Failed to announce original blob {} to network", blob_id_str);
+            }
+            
+            // Announce compressed blob to network (if different from original)
+            if compressed_blob_id_bytes != blob_id_bytes {
+                let compressed_blob_str = encode_blob_id_base58(&compressed_blob_id_bytes);
+                if env::blob_announce_to_context(&compressed_blob_id_bytes, &current_context) {
+                    app::log!("Successfully announced compressed blob {} to network", compressed_blob_str);
+                } else {
+                    app::log!("Failed to announce compressed blob {} to network", compressed_blob_str);
+                }
+            }
+
             attachments.push(Attachment {
                 original_name: attachment_names[i].clone(),
                 original_blob_id: blob_id_bytes,
@@ -542,5 +562,55 @@ impl ChatApp {
         self.messages.clear();
         app::log!("Cleared {} messages", count);
         Ok(())
+    }
+
+    /// Test blob announcement functionality
+    /// Creates a test blob, announces it to the network, and reports success
+    pub fn test_blob_announcement(&mut self, test_data: String) -> app::Result<String> {
+        app::log!("Testing blob announcement with data: '{}'", test_data);
+        
+        // Create a blob with the test data
+        let test_bytes = test_data.as_bytes();
+        let blob_id_bytes = store_blob_chunked(test_bytes)
+            .map_err(|e| app::err!("Failed to create test blob: {}", e))?;
+        
+        let blob_id_str = encode_blob_id_base58(&blob_id_bytes);
+        app::log!("Created test blob with ID: {}", blob_id_str);
+        
+        // Announce the blob to the current context
+        let current_context = env::context_id();
+        if env::blob_announce_to_context(&blob_id_bytes, &current_context) {
+            app::log!("Successfully announced test blob {} to network", blob_id_str);
+            Ok(format!("SUCCESS: Test blob {} announced to network", blob_id_str))
+        } else {
+            app::log!("Failed to announce test blob {} to network", blob_id_str);
+            app::bail!("Failed to announce test blob to network")
+        }
+    }
+
+    /// Test blob retrieval functionality  
+    /// Attempts to read a blob by its ID (for testing discovery)
+    pub fn test_blob_retrieval(&self, blob_id_str: String) -> app::Result<String> {
+        app::log!("Testing blob retrieval for ID: {}", blob_id_str);
+        
+        let blob_id_bytes = parse_blob_id_base58(&blob_id_str)
+            .map_err(|e| app::err!("Invalid blob ID '{}': {}", blob_id_str, e))?;
+        
+        // Try to load the blob
+        match load_blob_full(&blob_id_bytes) {
+            Ok(Some(data)) => {
+                let content = String::from_utf8_lossy(&data);
+                app::log!("Successfully retrieved blob {}: {} bytes", blob_id_str, data.len());
+                Ok(format!("SUCCESS: Retrieved {} bytes - '{}'", data.len(), content))
+            }
+            Ok(None) => {
+                app::log!("Blob {} not found", blob_id_str);
+                app::bail!("Blob not found: {}", blob_id_str)
+            }
+            Err(e) => {
+                app::log!("Error retrieving blob {}: {}", blob_id_str, e);
+                app::bail!("Error retrieving blob: {}", e)
+            }
+        }
     }
 }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback, DragEvent } from 'react';
-import { blobClient, clientLogout, getAuthConfig, getContextId } from '@calimero-network/calimero-client';
+import { blobClient, clientLogout, getAuthConfig, getContextId, apiClient } from '@calimero-network/calimero-client';
 import { ChatApi, Message, FileUpload, Attachment } from '../api/chatApi';
 
 const chatApi = new ChatApi();
@@ -16,6 +16,11 @@ export default function ChatPage() {
   const [stats, setStats] = useState<any>({});
   const [isDragOver, setIsDragOver] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isCreatingContext, setIsCreatingContext] = useState(false);
+  const [isDeletingContext, setIsDeletingContext] = useState(false);
+  const [contextError, setContextError] = useState<string | undefined>(undefined);
+  const [testData, setTestData] = useState('Hello, blob network!');
+  const [testBlobId, setTestBlobId] = useState('');
 
   // Get context identity from auth config
   const getCurrentSender = () => {
@@ -116,7 +121,7 @@ export default function ChatPage() {
           ));
         },
         '',
-        getContextId()
+        getContextId() || undefined
       );
 
       if (response.error) {
@@ -286,6 +291,98 @@ export default function ChatPage() {
     </div>
   );
 
+  const createContext = async () => {
+    setIsCreatingContext(true);
+    setContextError(undefined);
+    try {
+      const config = getAuthConfig();
+      if (!config?.executorPublicKey) {
+        setContextError('No executor public key found');
+        return;
+      }
+
+      const response = await apiClient.node().createContext('','','');
+
+      if (response.error) {
+        setContextError(`Failed to create context: ${response.error.message}`);
+        appendOutput(`Error creating context: ${response.error.message}`);
+      } else {
+        appendOutput(`Successfully created context: ${response.data?.contextId}`);
+      }
+    } catch (error) {
+      setContextError(`Failed to create context: ${error}`);
+      appendOutput(`Error creating context: ${error}`);
+    } finally {
+      setIsCreatingContext(false);
+    }
+  };
+
+  const deleteContext = async () => {
+    setIsDeletingContext(true);
+    setContextError(undefined);
+    try {
+      const contextId = getContextId();
+      if (!contextId) {
+        setContextError('No context ID found');
+        return;
+      }
+
+      const response = await apiClient.node().deleteContext('');
+
+      if (response.error) {
+        setContextError(`Failed to delete context: ${response.error.message}`);
+        appendOutput(`Error deleting context: ${response.error.message}`);
+      } else {
+        appendOutput(`Successfully deleted context: ${contextId}`);
+      }
+    } catch (error) {
+      setContextError(`Failed to delete context: ${error}`);
+      appendOutput(`Error deleting context: ${error}`);
+    } finally {
+      setIsDeletingContext(false);
+    }
+  };
+
+  const testBlobAnnouncement = async () => {
+    if (!testData.trim()) {
+      appendOutput('Please enter test data');
+      return;
+    }
+
+    try {
+      appendOutput(`Testing blob announcement with data: "${testData}"`);
+      const response = await chatApi.testBlobAnnouncement(testData);
+      
+      if (response.error) {
+        appendOutput(`Blob announcement test failed: ${response.error.message}`);
+      } else {
+        appendOutput(`Blob announcement test result: ${response.data}`);
+      }
+    } catch (error) {
+      appendOutput(`Blob announcement test error: ${error}`);
+    }
+  };
+
+  const testBlobRetrieval = async () => {
+    if (!testBlobId.trim()) {
+      appendOutput('Please enter a blob ID to test');
+      return;
+    }
+
+    try {
+      appendOutput(`Testing blob retrieval for ID: ${testBlobId}`);
+      const response = await chatApi.testBlobRetrieval(testBlobId);
+      
+      if (response.error) {
+        appendOutput(`Blob retrieval test failed: ${response.error.message}`);
+      } else {
+        appendOutput(`Blob retrieval test result: ${response.data}`);
+      }
+    } catch (error) {
+      appendOutput(`Blob retrieval test error: ${error}`);
+    }
+  };
+
   return (
     <div className="chat-container">
       <div className="header">
@@ -442,6 +539,63 @@ export default function ChatPage() {
             <button onClick={clearOutput} className="control-btn">
               Clear Output
             </button>
+            <button 
+              onClick={createContext} 
+              disabled={isCreatingContext}
+              className="control-btn"
+            >
+              {isCreatingContext ? 'Creating Context...' : 'Create New Context'}
+            </button>
+            <button 
+              onClick={deleteContext}
+              disabled={isDeletingContext}
+              className="control-btn danger"
+            >
+              {isDeletingContext ? 'Deleting Context...' : 'Delete Current Context'}
+            </button>
+            {contextError && (
+              <div className="error-message">
+                {contextError}
+              </div>
+            )}
+          </div>
+
+          <div className="test-section">
+            <h3>Blob Network Testing</h3>
+            
+            <div className="test-group">
+              <label>Test Data:</label>
+              <input
+                type="text"
+                value={testData}
+                onChange={(e) => setTestData(e.target.value)}
+                placeholder="Enter test data for blob"
+                className="test-input"
+              />
+              <button 
+                onClick={testBlobAnnouncement}
+                className="control-btn"
+              >
+                Test Blob Announcement
+              </button>
+            </div>
+
+            <div className="test-group">
+              <label>Blob ID:</label>
+              <input
+                type="text"
+                value={testBlobId}
+                onChange={(e) => setTestBlobId(e.target.value)}
+                placeholder="Enter blob ID to retrieve"
+                className="test-input"
+              />
+              <button 
+                onClick={testBlobRetrieval}
+                className="control-btn"
+              >
+                Test Blob Retrieval
+              </button>
+            </div>
           </div>
 
           <div className="output-section">
@@ -830,6 +984,56 @@ export default function ChatPage() {
           font-size: 12px;
           background: #f9fafb;
           resize: vertical;
+        }
+
+        .error-message {
+          color: #dc2626;
+          background: #fef2f2;
+          border: 1px solid #fecaca;
+          padding: 8px 12px;
+          border-radius: 6px;
+          margin: 8px 0;
+          font-size: 14px;
+        }
+
+        .test-section {
+          margin-bottom: 20px;
+          padding: 16px;
+          background: white;
+          border: 1px solid #e5e7eb;
+          border-radius: 8px;
+        }
+
+        .test-section h3 {
+          margin: 0 0 16px 0;
+          color: #374151;
+        }
+
+        .test-group {
+          margin-bottom: 16px;
+        }
+
+        .test-group label {
+          display: block;
+          margin-bottom: 4px;
+          font-weight: 500;
+          color: #374151;
+          font-size: 14px;
+        }
+
+        .test-input {
+          width: 100%;
+          padding: 8px 12px;
+          border: 1px solid #d1d5db;
+          border-radius: 6px;
+          font-size: 14px;
+          margin-bottom: 8px;
+        }
+
+        .test-input:focus {
+          outline: none;
+          border-color: #3b82f6;
+          box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
         }
       `}</style>
     </div>
