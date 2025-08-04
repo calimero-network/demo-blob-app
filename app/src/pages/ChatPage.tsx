@@ -210,7 +210,7 @@ export default function ChatPage() {
       
       // Step 2: Download the original file via HTTP
       appendOutput(`Downloading original file via HTTP...`);
-      const blob = await blobClient.downloadBlob(decompressedBlobId, getContextId() || undefined);
+      const blob = await blobClient.downloadBlob(decompressedBlobId);
       
       // Step 3: Create download link
       const url = URL.createObjectURL(blob);
