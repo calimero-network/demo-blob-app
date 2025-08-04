@@ -121,8 +121,9 @@ export default function ChatPage() {
           ));
         },
         '',
-        getContextId() || undefined
       );
+
+      console.log('response', response);
 
       if (response.error) {
         setFiles(prev => prev.map((f, i) => 
